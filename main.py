@@ -35,11 +35,9 @@ def main(page: ft.Page):
     page.scroll = ft.ScrollMode.ADAPTIVE
     page.padding = 20
     
-    # Core Mobile UI Themes
     accent_blue = "#1e40af"
     text_muted = "#475569"
 
-    # UI Widgets
     title = ft.Text("POST Vehicle Inquiry", style=ft.TextThemeStyle.HEADLINE_MEDIUM, weight=ft.FontWeight.BOLD)
     vin_input = ft.TextField(label="Enter 17-Digit VIN Number", max_length=17, capitalize=ft.TextCapitalization.CHARACTERS, hint_text="17 alphanumeric characters")
     results_container = ft.Column(spacing=10, expand=True)
@@ -70,7 +68,6 @@ def main(page: ft.Page):
             show_alert("No vehicle configuration items found.")
             return
 
-        # Display Main Specific Core Elements
         results_container.controls.append(ft.Text("Core Identity Overview", size=18, weight=ft.FontWeight.BOLD, color=accent_blue))
         primary_metrics = ["Model Year", "Make", "Model", "Trim", "Body Class"]
         
@@ -101,10 +98,8 @@ def main(page: ft.Page):
         results_container.controls.append(ft.Text("Please enter a vehicle VIN above to query specification sheets.", italic=True, color=text_muted))
         page.update()
 
-    # Initial Setup Text Description State
     results_container.controls.append(ft.Text("Please enter a vehicle VIN above to query specification sheets.", italic=True, color=text_muted))
 
-    # Control Action Buttons Row Layout Layout
     buttons_row = ft.Row([
         ft.ElevatedButton("Search Database", on_click=perform_search, bgcolor=accent_blue, color="white", expand=True),
         ft.OutlinedButton("Clear", on_click=clear_fields)
@@ -112,6 +107,6 @@ def main(page: ft.Page):
 
     page.add(title, vin_input, buttons_row, ft.Container(content=results_container, padding=10))
 
-# Boot target configured seamlessly for running inside cloud web ports
+# Standard cloud entry hook forcing Flet to run directly as a mobile-responsive web engine
 if __name__ == "__main__":
     ft.app(target=main, view=ft.AppView.WEB_BROWSER)
