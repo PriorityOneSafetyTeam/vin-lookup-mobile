@@ -28,6 +28,7 @@ HTML_TEMPLATE = """
         .data-row { display: flex; margin-bottom: 6px; font-size: 15px; }
         .data-key { font-weight: bold; color: #475569; width: 150px; flex-shrink: 0; }
         .data-val { color: black; }
+        .debug-box { margin-top: 15px; background: #f8fafc; border: 1px solid #e2e8f0; padding: 10px; border-radius: 6px; font-family: monospace; font-size: 11px; white-space: pre-wrap; color: #dc2626; max-height: 150px; overflow-y: auto; }
     </style>
 </head>
 <body>
@@ -66,7 +67,15 @@ async function lookupVin() {
         const response = await fetch(`/api/lookup?vin=${vinInput}`);
         const data = await response.json();
         
-        if (data.error) { output.innerHTML = `<p style="text-align:center; color:#dc2626; font-weight:bold;">${data.error}</p>`; return; }
+        if (data.error) { 
+            // In case of a backend mapping issue, this exposes the inner system log tracking notes on your screen
+            let errHtml = `<p style="text-align:center; color:#dc2626; font-weight:bold;">${data.error}</p>`;
+            if(data.details) {
+                errHtml += `<div class="section-title">Diagnostic Trace:</div><div class="debug-box">${data.details}</div>`;
+            }
+            output.innerHTML = errHtml; 
+            return; 
+        }
         
         let html = '<div class="section-title">Core Identity Overview</div>';
         const primary = ["ModelYear", "Make", "Model", "Trim", "BodyClass"];
@@ -111,9 +120,7 @@ def lookup():
     if len(vin) != 17:
         return jsonify({"error": "VIN must be exactly 17 characters."}), 400
     
-    url = f"https://dot.gov{vin}?format=json"
-    
-    # FIX: Added a secure modern browser verification header string to pass the new server rules
+    url = f"https://vpic.nhtsa.dot.gov/api/vehicles/DecodeVinValues/{vin}?format=json"
     headers = {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
         "Accept": "application/json"
@@ -121,8 +128,11 @@ def lookup():
     
     try:
         res = requests.get(url, headers=headers, timeout=12)
-        data = res.json()
-        results = data.get('Results', [None])[0] if data.get('Results') else None
+        raw_json = res.json()
+        
+        # Core fix: Secure extraction of index 0 from the returned list object mapping array wrapper
+        results_list = raw_json.get('Results', [])
+        results = results_list[0] if (results_list and len(results_list) > 0) else None
         
         if not results or results.get("ErrorCode") == "1":
             return jsonify({"error": "No vehicle database records match this VIN number."}), 404
@@ -133,7 +143,11 @@ def lookup():
                 clean_data[key] = str(val).strip()
         return jsonify(clean_data)
     except Exception as e:
-        return jsonify({"error": "Failed to connect to the government database infrastructure."}), 500
+        # If an upstream structure change occurs, this tracks and reflects it safely on your phone interface
+        return jsonify({
+            "error": "Failed to map government database parameters.",
+            "details": str(e)
+        }), 500
 
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 5000))
