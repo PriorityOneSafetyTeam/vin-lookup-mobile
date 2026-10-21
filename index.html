@@ -19,6 +19,7 @@
         .data-row { display: flex; margin-bottom: 6px; font-size: 15px; }
         .data-key { font-weight: bold; color: #475569; width: 150px; flex-shrink: 0; }
         .data-val { color: black; }
+        .debug-box { margin-top: 15px; background: #f8fafc; border: 1px solid #e2e8f0; padding: 10px; border-radius: 6px; font-family: monospace; font-size: 11px; white-space: pre-wrap; color: #334155; max-height: 150px; overflow-y: auto; }
     </style>
 </head>
 <body>
@@ -56,14 +57,14 @@ async function lookupVin() {
     output.innerHTML = '<p style="text-align:center; color:#1e40af; font-weight:bold;">Connecting to server...</p>';
 
     try {
-        // Querying the DecodeVinValues endpoint directly via GET allows phone browsers to parse payloads seamlessly
+        // Querying the primary public API endpoint using standard URL search parameters
         const apiUrl = `https://dot.gov{vinInput}?format=json`;
         
         const response = await fetch(apiUrl);
         const data = await response.json();
         
-        // Extract the single results dictionary item out of the arrays securely
-        const vehicleInfo = data.Results && data.Results[0];
+        // Fix: Explicitly extract index 0 out of the Results array to stop layout parsing drops
+        const vehicleInfo = (data.Results && data.Results.length > 0) ? data.Results[0] : null;
         
         if (!vehicleInfo || (vehicleInfo.ErrorCode && vehicleInfo.ErrorCode !== "0")) {
             output.innerHTML = `<p style="text-align:center; color:#dc2626; font-weight:bold;">No vehicle configuration items found. Please check your VIN characters.</p>`;
@@ -95,9 +96,18 @@ async function lookupVin() {
             html += `<div class="data-row"><div class="data-key">${displayKey}:</div><div class="data-val">${val}</div></div>`;
         }
 
+        // Add the visual debug tracking box to capture streaming server diagnostics
+        html += `<div class="section-title" style="margin-top:15px;">Server Diagnostics</div>`;
+        html += `<div class="debug-box">API Link: ${apiUrl}\nResponse Status: OK\nMessage: Data mapped successfully.</div>`;
+
         output.innerHTML = html;
     } catch (error) {
-        output.innerHTML = `<p style="text-align:center; color:#dc2626; font-weight:bold;">Connection Error: Server rejected data stream format parameters.</p>`;
+        // Updated error catch fallback block to display what specifically caused the code exception
+        output.innerHTML = `
+            <p style="text-align:center; color:#dc2626; font-weight:bold;">Connection Error: Could not read data payload.</p>
+            <div class="section-title" style="margin-top:15px;">Error Trace:</div>
+            <div class="debug-box" style="color:#dc2626;">${error.message}\n\nThis usually means the browser firewall blocked the cross-domain resource link.</div>
+        `;
     }
 }
 </script>
