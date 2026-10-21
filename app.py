@@ -1,10 +1,10 @@
 import os
 import requests
-from flask import Flask, request, jsonify, render_template_string
+from flask import Flask, request, jsonify, render_template_string, send_from_directory
 
 app = Flask(__name__)
 
-# Single-file HTML layout sent natively to your mobile device
+# Rebuilt HTML layout containing the mandatory PWA manifest and service worker integration tags
 HTML_TEMPLATE = """
 <!DOCTYPE html>
 <html lang="en">
@@ -12,6 +12,11 @@ HTML_TEMPLATE = """
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>POST Vehicle Inquiry Service</title>
+    
+    <!-- Link the mobile app installation rules file -->
+    <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#1e40af">
+    
     <style>
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background-color: #f1f5f9; color: #0f172a; margin: 0; padding: 20px; }
         .card { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1); max-width: 500px; margin: 0 auto; }
@@ -44,6 +49,13 @@ HTML_TEMPLATE = """
 </div>
 
 <script>
+// Automatically boot the service worker inside Chrome on startup to unlock 'Install App' settings
+if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/sw.js').catch(err => console.log("PWA init hook note"));
+    });
+}
+
 function clearAll() {
     document.getElementById('vin').value = '';
     document.getElementById('output').innerHTML = '<p style="text-align:center; font-style:italic; color:#475569;">Please enter a vehicle VIN above to query technical specification data.</p>';
@@ -56,7 +68,6 @@ async function lookupVin() {
     output.innerHTML = '<p style="text-align:center; color:#1e40af; font-weight:bold;">Connecting to server...</p>';
     
     try {
-        // Talks securely to your own Render server backend instead of the blocked government link
         const response = await fetch(`/api/lookup?vin=${vinInput}`);
         const data = await response.json();
         
@@ -91,14 +102,22 @@ async function lookupVin() {
 def home():
     return render_template_string(HTML_TEMPLATE)
 
+# Direct network routes to pass configuration files securely to Chrome's device installer modules
+@app.route('/manifest.json')
+def serve_manifest():
+    return send_from_directory(os.getcwd(), 'manifest.json')
+
+@app.route('/sw.js')
+def serve_sw():
+    return send_from_directory(os.getcwd(), 'sw.js')
+
 @app.route('/api/lookup')
 def lookup():
     vin = request.args.get('vin', '').strip().upper()
     if len(vin) != 17:
         return jsonify({"error": "VIN must be exactly 17 characters."}), 400
     
-    # Server-side data fetch completely bypasses all mobile browser CORS blocks
-    url = f"https://vpic.nhtsa.dot.gov/api/vehicles/DecodeVinValues/{vin}?format=json"
+    url = f"https://dot.gov{vin}?format=json"
     try:
         res = requests.get(url, timeout=10)
         data = res.json()
