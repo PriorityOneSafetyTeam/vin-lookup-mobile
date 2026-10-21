@@ -56,22 +56,24 @@ async function lookupVin() {
     output.innerHTML = '<p style="text-align:center; color:#1e40af; font-weight:bold;">Connecting to server...</p>';
 
     try {
-        // We use the 'DecodeVinValues' endpoint which handles direct cross-origin fetching much better for web platforms
-        const apiUrl = `https://dot.gov{vinInput}?format=json`;
+        // Utilizing the Batch endpoint via a POST payload completely bypasses browser CORS connection blocks
+        const response = await fetch('https://dot.gov', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+            },
+            body: new URLSearchParams({
+                'format': 'json',
+                'vins': vinInput
+            })
+        });
+
+        const data = await response.json();
         
-        // Wrapped in an open proxy tunnel link to automatically strip cross-origin header locks
-        const secureProxyUrl = `https://allorigins.win{encodeURIComponent(apiUrl)}`;
+        // Grab the single vehicle dictionary out of the returned batch array list
+        const vehicleInfo = data.Results && data.Results[0];
         
-        const response = await fetch(secureProxyUrl);
-        const proxyData = await response.json();
-        
-        // Parse the inner response data out of the proxy envelope wrapper
-        const data = JSON.parse(proxyData.contents);
-        
-        // DecodeVinValues returns a flat dictionary inside an array item instead of separated metadata elements
-        const vehicleInfo = data.Results[0];
-        
-        if (!vehicleInfo || (vehicleInfo.ErrorCode && vehicleInfo.ErrorCode !== "0")) {
+        if (!vehicleInfo) {
             output.innerHTML = `<p style="text-align:center; color:#dc2626; font-weight:bold;">No vehicle data found. Please double check the VIN syntax.</p>`;
             return;
         }
@@ -88,7 +90,6 @@ async function lookupVin() {
         
         primary.forEach(metric => {
             if (cleanResults[metric]) {
-                // Add natural spacing to the key outputs to keep the dashboard looking tidy
                 let displayKey = metric.replace(/([A-Z])/g, ' \$1').trim();
                 html += `<div class="data-row"><div class="data-key">${displayKey}:</div><div class="data-val">${cleanResults[metric]}</div></div>`;
                 delete cleanResults[metric];
@@ -104,7 +105,7 @@ async function lookupVin() {
 
         output.innerHTML = html;
     } catch (error) {
-        output.innerHTML = `<p style="text-align:center; color:#dc2626; font-weight:bold;">Connection Error: Security policy blocked the background lookup.</p>`;
+        output.innerHTML = `<p style="text-align:center; color:#dc2626; font-weight:bold;">Connection Error: Could not parse database payload.</p>`;
     }
 }
 </script>
