@@ -1,5 +1,6 @@
 import flet as ft
 import requests
+import os
 
 def lookup_vehicle_by_vin(vin: str):
     """Looks up vehicle data using the official NHTSA vPIC API endpoint."""
@@ -107,6 +108,5 @@ def main(page: ft.Page):
 
     page.add(title, vin_input, buttons_row, ft.Container(content=results_container, padding=10))
 
-# Standard cloud entry hook forcing Flet to run directly as a mobile-responsive web engine
-if __name__ == "__main__":
-    ft.app(target=main, view=ft.AppView.WEB_BROWSER)
+# Create the standard web app wrapper using Flet's integration engine
+app = ft.app_fastapi(main)
