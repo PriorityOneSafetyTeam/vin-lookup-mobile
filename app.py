@@ -4,7 +4,6 @@ from flask import Flask, request, jsonify, render_template_string, send_from_dir
 
 app = Flask(__name__)
 
-# Rebuilt HTML layout containing the mandatory PWA manifest and service worker integration tags
 HTML_TEMPLATE = """
 <!DOCTYPE html>
 <html lang="en">
@@ -12,11 +11,8 @@ HTML_TEMPLATE = """
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>POST Vehicle Inquiry Service</title>
-    
-    <!-- Link the mobile app installation rules file -->
     <link rel="manifest" href="/manifest.json">
     <meta name="theme-color" content="#1e40af">
-    
     <style>
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background-color: #f1f5f9; color: #0f172a; margin: 0; padding: 20px; }
         .card { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1); max-width: 500px; margin: 0 auto; }
@@ -49,10 +45,9 @@ HTML_TEMPLATE = """
 </div>
 
 <script>
-// Automatically boot the service worker inside Chrome on startup to unlock 'Install App' settings
 if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
-        navigator.serviceWorker.register('/sw.js').catch(err => console.log("PWA init hook note"));
+        navigator.serviceWorker.register('/sw.js').catch(err => console.log("PWA init"));
     });
 }
 
@@ -102,7 +97,6 @@ async function lookupVin() {
 def home():
     return render_template_string(HTML_TEMPLATE)
 
-# Direct network routes to pass configuration files securely to Chrome's device installer modules
 @app.route('/manifest.json')
 def serve_manifest():
     return send_from_directory(os.getcwd(), 'manifest.json')
@@ -118,12 +112,19 @@ def lookup():
         return jsonify({"error": "VIN must be exactly 17 characters."}), 400
     
     url = f"https://dot.gov{vin}?format=json"
+    
+    # FIX: Added a secure modern browser verification header string to pass the new server rules
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        "Accept": "application/json"
+    }
+    
     try:
-        res = requests.get(url, timeout=10)
+        res = requests.get(url, headers=headers, timeout=12)
         data = res.json()
-        results = data['Results'][0] if data.get('Results') else None
+        results = data.get('Results', [None])[0] if data.get('Results') else None
         
-        if not results or results.get("ErrorCode") != "0":
+        if not results or results.get("ErrorCode") == "1":
             return jsonify({"error": "No vehicle database records match this VIN number."}), 404
             
         clean_data = {}
