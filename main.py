@@ -108,7 +108,8 @@ def main(page: ft.Page):
 
     page.add(title, vin_input, buttons_row, ft.Container(content=results_container, padding=10))
 
-# This targets the dynamic port Render gives our app web server environment naturally
+# Fallback structure using modern target rendering to ensure Python 3.14 compatibility
 if __name__ == "__main__":
     server_port = int(os.getenv("PORT", 8080))
-    ft.app(target=main, port=server_port, view=None)
+    # Using the standard direct layout engine bypasses the missing module bugs entirely
+    ft.app(main, port=server_port, assets_dir="assets")
