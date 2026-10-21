@@ -108,5 +108,7 @@ def main(page: ft.Page):
 
     page.add(title, vin_input, buttons_row, ft.Container(content=results_container, padding=10))
 
-# Create the standard web app wrapper using Flet's integration engine
-app = ft.app_fastapi(main)
+# This targets the dynamic port Render gives our app web server environment naturally
+if __name__ == "__main__":
+    server_port = int(os.getenv("PORT", 8080))
+    ft.app(target=main, port=server_port, view=None)
