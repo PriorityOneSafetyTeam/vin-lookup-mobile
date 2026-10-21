@@ -1,0 +1,17 @@
+{
+  "short_name": "VIN Lookup",
+  "name": "POST Vehicle Inquiry Service",
+  "icons": [
+    {
+      "src": "https://flaticon.com",
+      "type": "image/png",
+      "sizes": "512x512",
+      "purpose": "any maskable"
+    }
+  ],
+  "start_url": "/",
+  "background_color": "#f1f5f9",
+  "theme_color": "#1e40af",
+  "display": "standalone",
+  "orientation": "portrait"
+}
